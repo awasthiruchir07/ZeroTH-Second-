@@ -17,20 +17,31 @@ class Game :
         self.clock = pygame.time.Clock()
         self.running = True 
         self.timer = TimeEngine()
+        self.input = InputManager()
         self.camera = Camera()
         self.world = World()
+        self.debug = DebugOverlay()
+        self.bullets = []
+        self.hit_effects = []
         player_position = self.world.find_valid_position(32, 32)
         if player_position is None :
             raise RuntimeError("Could not find a valid player spawn position")
         self.player = Player(player_position)
-        drone_position = self.world.find_valid_position( 30, 30, min_distance=250, origin=self.player.position)
-        if drone_position is None:
-            raise RuntimeError("Could not find a valid drone spawn position")
-        self.drone = Drone(drone_position.x, drone_position.y)
-        self.input = InputManager()
-        self.debug = DebugOverlay()
-        self.bullets = []
-        self.hit_effects = []
+        self.drones = []
+        for _ in range(3):
+            drone_position = self.world.find_valid_position(
+                30,
+                30,
+                min_distance=250,
+                origin=self.player.position
+            )
+            if drone_position is not None:
+                self.drones.append(
+                    Drone(
+                        drone_position.x,
+                        drone_position.y
+                    )
+                )
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -55,35 +66,26 @@ class Game :
         if direction.length_squared() > 0:
             self.player.set_rotation(direction.angle_to(pygame.Vector2(1, 0)))
             self.player.aim_direction = direction.normalize()
-        drone_firing = self.drone.update(game_dt, self.player, self.world)
-        if drone_firing:
-            spawn_position = (
-                self.drone.position +
-                pygame.Vector2(
-                    self.drone.width / 2,
-                    self.drone.height / 2
+            for drone in self.drones:
+                drone_firing = drone.update(
+                    game_dt,
+                    self.player,
+                    self.world
                 )
-            )
-            self.bullets.append(
-                Bullet(
-                    spawn_position,
-                    self.drone.aim_direction,
-                    "drone"
-                )
-            )
-        if self.drone.dead:
-            self.drone.death_timer -= real_dt
-            if self.drone.death_timer <= 0:
-                drone_position = self.world.find_valid_position(
-                    30,
-                    30,
-                    min_distance=250,
-                    origin=self.player.position
-                )
-                if drone_position is not None:
-                    self.drone = Drone(
-                        drone_position.x,
-                        drone_position.y
+                if drone_firing:
+                    spawn_position = (
+                        drone.position +
+                        pygame.Vector2(
+                            drone.width / 2,
+                            drone.height / 2
+                        )
+                    )
+                    self.bullets.append(
+                        Bullet(
+                            spawn_position,
+                            drone.aim_direction,
+                            "drone"
+                        )
                     )
         self.camera.update(self.player, WIDTH, HEIGHT)
         if self.input.is_shooting():
@@ -108,27 +110,20 @@ class Game :
             bullet.update(game_dt, self.world)
             if bullet.dead:
                 continue
-
-            if (
-                bullet.owner == "player"
-                and not self.drone.dead
-            ):
-                if bullet.hitbox.colliderect(
-                    self.drone.hitbox
-                ):
-                    self.drone.take_damage(
-                        bullet.damage
-                    )
-                    self.hit_effects.append(
-                        [
-                            pygame.Vector2(
-                                bullet.position
-                            ),
-                            0.12
-                        ]
-                    )
-                    bullet.dead = True
-                    continue
+            if bullet.owner == "player":
+                for drone in self.drones:
+                    if drone.dead:
+                        continue
+                    if bullet.hitbox.colliderect(drone.hitbox):
+                        drone.take_damage(bullet.damage)
+                        self.hit_effects.append(
+                            [
+                                pygame.Vector2(bullet.position),
+                                0.12
+                            ]
+                        )
+                        bullet.dead = True
+                        break
 
             if (
                 bullet.owner == "drone"
@@ -168,8 +163,9 @@ class Game :
         self.screen.fill(BACKGROUND)
         self.world.draw(self.screen, self.camera)
         self.player.draw(self.screen, self.camera)
-        if not self.drone.dead:
-            self.drone.draw(self.screen, self.camera)
+        for drone in self.drones:
+            if not drone.dead:
+                drone.draw(self.screen, self.camera)
         self.debug.draw(self.screen, self)
         for bullet in self.bullets:
             bullet.draw(self.screen, self.camera)
@@ -270,15 +266,17 @@ class Game :
         if player_position is None:
             return
         self.player = Player(player_position)
-        drone_position = self.world.find_valid_position(
-            30,
-            30,
-            min_distance=250,
-            origin=self.player.position
-        )
-        if drone_position is not None:
-            self.drone = Drone(
-                drone_position.x,
-                drone_position.y
-            )
+        self.drones = []
+        for _ in range(3):
+            drone_position = self.world.find_valid_position(                    
+                30,
+                30,
+                min_distance=250,
+                origin=self.player.position)
+            if drone_position is not None:
+                self.drones.append(
+                    Drone(
+                            drone_position.x,                            drone_position.y
+                    )
+                )
         self.bullets.clear()
