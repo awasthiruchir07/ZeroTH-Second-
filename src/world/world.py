@@ -222,3 +222,19 @@ class World:
             current = came_from[current]
         path.reverse()
         return path
+    def has_line_of_sight(self, start, end):
+        direction = end - start
+        distance = direction.length()
+        if distance <= 0:
+            return True
+        direction = direction.normalize()
+        step = self.TILE_SIZE / 4
+        steps = int(distance / step)
+        position = pygame.Vector2(start)
+        for _ in range(steps):
+            position += direction * step
+            col = int(position.x // self.TILE_SIZE)
+            row = int(position.y // self.TILE_SIZE)
+            if self.is_wall(row, col):
+                return False
+        return True

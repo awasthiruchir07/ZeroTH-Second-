@@ -53,33 +53,52 @@ class Drone(Entity):
             return False 
         distance = self.position.distance_to(player.position)
         if self.state == self.PATROL:
-            if distance <= self.detection_range:
+            if (
+                distance <= self.detection_range
+                and world.has_line_of_sight(
+                    self.position,
+                    player.position
+                )
+            ):
                 self.state = self.CHASE
         elif self.state == self.CHASE:
             if distance <= self.attack_range:
                 self.state = self.ATTACK
+                self.attack_cooldown = 0
             elif distance > self.detection_range:
                 self.state = self.SEARCH
                 self.search_timer = self.search_duration
         elif self.state == self.ATTACK:
-            if distance > self.attack_range:
-                self.state = self.CHASE
             if distance > self.detection_range:
                 self.state = self.SEARCH
                 self.search_timer = self.search_duration
+            elif distance > self.attack_range:
+                self.state = self.CHASE
         elif self.state == self.SEARCH:
             self.search_timer -= dt
-            if distance <= self.detection_range:
+            if (
+                distance <= self.detection_range
+                and world.has_line_of_sight(
+                    self.position,
+                    player.position
+                )
+            ):
                 self.state = self.CHASE
+                self.path = []
+                self.path_index = 0
+                self.path_timer = 0
             elif self.search_timer <= 0:
                 self.state = self.PATROL
+                self.path = []
+                self.path_index = 0
+                self.velocity = pygame.Vector2()
 
         if self.state == self.PATROL:
             self.update_patrol(dt, world)
         elif self.state == self.CHASE:
             self.update_chase(dt, player, world)
         elif self.state == self.ATTACK:
-            return self.update_attack(dt, player)
+            return self.update_attack(dt, player, world)
         elif self.state == self.SEARCH:
             self.update_search(dt, world)
         return False
@@ -174,10 +193,15 @@ class Drone(Entity):
         else:
             self.velocity.y = 0
 
-    def update_attack(self, dt, player):
+    def update_attack(self, dt, player, world):
         direction = player.position - self.position
         if direction.length_squared() > 0:
             self.aim_direction = direction.normalize()
+        if not world.has_line_of_sight(
+            self.position,
+            player.position
+        ):
+            return False
         self.attack_cooldown -= dt
         if self.attack_cooldown <= 0:
             self.attack_cooldown = self.attack_delay
@@ -185,6 +209,7 @@ class Drone(Entity):
         return False 
         
     def update_search(self, dt, world):
+        self.velocity = pygame.Vector2()
         movement = (
             self.direction *
             self.speed *
