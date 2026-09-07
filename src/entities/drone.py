@@ -17,7 +17,7 @@ class Drone(Entity):
         self.death_timer = 0.0
         self.state = self.PATROL
         self.detection_range = 400
-        self.attack_range = 120
+        self.attack_range = 210
         self.chase_speed = 150
         self.search_timer = 0.0
         self.search_duration = 3.0
@@ -28,10 +28,19 @@ class Drone(Entity):
         self.attack_cooldown = 0.0
         self.attack_delay = 0.35
         self.attack_damage = 10
-        self.aim_direction = pygame.Vector2(1, 0)
         self.damage_flash = 0.0
         self.color = (100, 100, 255)
         self.explosion_timer = 0.0
+        self.preferred_attack_distance = 170
+        self.strafe_direction = 1
+        self.strafe_speed = 45
+        self.strafe_timer = 0.0
+        self.strafe_change_time = 1.5
+        self.strafe_direction = 1
+        self.strafe_speed = 45
+        self.strafe_timer = 0.0
+        self.strafe_change_time = 1.5
+        self.aim_direction = pygame.Vector2(1, 0)
 
     def take_damage(self, amount):
         if self.dead:
@@ -51,7 +60,7 @@ class Drone(Entity):
             self.explosion_timer -= dt
         if self.dead:
             return False 
-        distance = self.position.distance_to(player.position)
+        distance = pygame.Vector2(self.rect.center).distance_to(player.rect.center)
         if self.state == self.PATROL:
             if (
                 distance <= self.detection_range
@@ -74,6 +83,14 @@ class Drone(Entity):
                 self.search_timer = self.search_duration
             elif distance > self.attack_range:
                 self.state = self.CHASE
+            elif not world.has_line_of_sight(
+                self.position,
+                player.position
+            ):
+                self.state = self.CHASE
+                self.path = []
+                self.path_index = 0
+                self.path_timer = 0
         elif self.state == self.SEARCH:
             self.search_timer -= dt
             if (
@@ -194,9 +211,50 @@ class Drone(Entity):
             self.velocity.y = 0
 
     def update_attack(self, dt, player, world):
-        direction = player.position - self.position
+        drone_center = pygame.Vector2(self.rect.center)
+        player_center = pygame.Vector2(player.rect.center)
+        direction = player_center - drone_center
         if direction.length_squared() > 0:
-            self.aim_direction = direction.normalize()
+            direction = direction.normalize()
+            self.aim_direction = direction
+        distance = drone_center.distance_to(player_center)
+        if distance < self.preferred_attack_distance - 30:
+            movement = -direction * self.chase_speed * dt
+        elif distance > self.preferred_attack_distance + 30:
+            movement = direction * self.chase_speed * dt
+        else:
+            self.strafe_timer -= dt
+            if self.strafe_timer <= 0:
+                self.strafe_timer = self.strafe_change_time
+                self.strafe_direction *= -1
+            strafe = pygame.Vector2(
+                -direction.y,
+                direction.x
+            )
+            movement = (
+                strafe
+                * self.strafe_direction
+                * self.strafe_speed
+                * dt
+            )
+        new_x = self.position.x + movement.x
+        x_rect = pygame.Rect(
+            new_x,
+            self.position.y,
+            self.width,
+            self.height
+        )
+        if not world.is_rect_colliding(x_rect):
+            self.position.x = new_x
+        new_y = self.position.y + movement.y
+        y_rect = pygame.Rect(
+            self.position.x,
+            new_y,
+            self.width,
+            self.height
+        )
+        if not world.is_rect_colliding(y_rect):
+            self.position.y = new_y
         if not world.has_line_of_sight(
             self.position,
             player.position
@@ -207,6 +265,27 @@ class Drone(Entity):
             self.attack_cooldown = self.attack_delay
             return True
         return False 
+        new_x = self.position.x + movement.x
+        x_rect = pygame.Rect(
+            new_x,
+            self.position.y,
+            self.width,
+            self.height
+        )
+        if not world.is_rect_colliding(x_rect):
+            self.position.x = new_x
+        else:
+            self.strafe_direction *= -1
+            self.strafe_timer = 0
+        new_y = self.position.y + movement.y
+        y_rect = pygame.Rect(
+            self.position.x,
+            new_y,
+            self.width,
+            self.height
+        )
+        if not world.is_rect_colliding(y_rect):
+            self.position.y = new_y
         
     def update_search(self, dt, world):
         self.velocity = pygame.Vector2()
