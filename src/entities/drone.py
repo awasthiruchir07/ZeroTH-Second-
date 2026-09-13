@@ -6,19 +6,30 @@ class Drone(Entity):
     ATTACK = "ATTACK"
     SEARCH = "SEARCH"
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, drone_type = 'basic'):
         super().__init__(x, y, 30, 30)
+        self.drone_type = drone_type
         self.start_x = x
         self.distance = 120
         self.speed = 120
         self.direction = 1
         self.health = 100
+        if drone_type == "scout":
+            self.speed = 180
+            self.health = 60
+        elif drone_type == "tank":
+            self.speed = 70
+            self.health = 200
         self.dead = False
         self.death_timer = 0.0
         self.state = self.PATROL
         self.detection_range = 400
         self.attack_range = 210
         self.chase_speed = 150
+        if drone_type == "scout":
+            self.chase_speed = 220
+        elif drone_type == "tank":
+            self.chase_speed = 90
         self.search_timer = 0.0
         self.search_duration = 3.0
         self.path = []
@@ -28,10 +39,22 @@ class Drone(Entity):
         self.attack_cooldown = 0.0
         self.attack_delay = 0.35
         self.attack_damage = 10
-        self.damage_flash = 0.0
         self.color = (100, 100, 255)
+        if drone_type == "scout":
+            self.attack_delay = 0.25
+            self.attack_damage = 8
+            self.color = (100, 255, 100)
+        elif drone_type == "tank":
+            self.attack_delay = 0.7
+            self.attack_damage = 20
+            self.color = (255, 100, 100)
+        self.damage_flash = 0.0
         self.explosion_timer = 0.0
         self.preferred_attack_distance = 170
+        if drone_type == "scout":
+            self.preferred_attack_distance = 120
+        elif drone_type == "tank":
+            self.preferred_attack_distance = 200
         self.strafe_direction = 1
         self.strafe_speed = 45
         self.strafe_timer = 0.0
@@ -223,20 +246,23 @@ class Drone(Entity):
         elif distance > self.preferred_attack_distance + 30:
             movement = direction * self.chase_speed * dt
         else:
-            self.strafe_timer -= dt
-            if self.strafe_timer <= 0:
-                self.strafe_timer = self.strafe_change_time
-                self.strafe_direction *= -1
-            strafe = pygame.Vector2(
-                -direction.y,
-                direction.x
-            )
-            movement = (
-                strafe
-                * self.strafe_direction
-                * self.strafe_speed
-                * dt
-            )
+            if self.drone_type == "tank":
+                movement = pygame.Vector2()
+            else:
+                self.strafe_timer -= dt
+                if self.strafe_timer <= 0:
+                    self.strafe_timer = self.strafe_change_time
+                    self.strafe_direction *= -1
+                strafe = pygame.Vector2(
+                    -direction.y,
+                    direction.x
+                )
+                movement = (
+                    strafe
+                    * self.strafe_direction
+                    * self.strafe_speed
+                    * dt
+                )
         new_x = self.position.x + movement.x
         x_rect = pygame.Rect(
             new_x,

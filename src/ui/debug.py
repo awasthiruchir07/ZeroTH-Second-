@@ -27,13 +27,16 @@ class DebugOverlay:
             f"Time Scale : {game.timer.scale:.2f}",
             f"Player : ({game.player.position.x:.1f}, {game.player.position.y:.1f})",
             f"Camera : ({game.camera.offset.x:.1f}, {game.camera.offset.y:.1f})",
-            f"Drone : ({game.drone.position.x:.1f}, {game.drone.position.y:.1f})",
+            f"Drones : {len(game.drones)}",
             f"Bullets : {len(game.bullets)}",
-            f"Drone HP : {game.drone.health}",
             f"Player HP : {game.player.health}",
-            f"Drone State : {'DEAD' if game.drone.dead else 'ACTIVE'}",
-            f"Drone State : {game.drone.state}",
         ]
+        for i, drone in enumerate(game.drones):
+            lines.append(
+                f"Drone {i + 1}: "
+                f"HP={drone.health} "
+                f"State={drone.state}"
+            )
         y = 10
         for line in lines:
             surface = self.font.render(line, True, (0,255,0))
@@ -42,29 +45,31 @@ class DebugOverlay:
         hitbox = game.camera.apply(game.player.hitbox)
         pygame.draw.rect(screen, (255,0,0), hitbox, 2)
 
-        if game.drone.path:
-            for tile_x, tile_y in game.drone.path:
-                world_position = pygame.Vector2(
-                    tile_y * game.world.TILE_SIZE
-                    + game.world.TILE_SIZE / 2,
-
-                    tile_x * game.world.TILE_SIZE
-                    + game.world.TILE_SIZE / 2
-                )
-                screen_position = game.camera.apply(
-                    pygame.Rect(
-                        world_position.x,
-                        world_position.y,
-                        1,
-                        1
+        for drone in game.drones:
+            if drone.path:
+                for tile_x, tile_y in drone.path:
+                    world_position = pygame.Vector2(
+                        tile_y * game.world.TILE_SIZE
+                        + game.world.TILE_SIZE / 2,
+                        tile_x * game.world.TILE_SIZE
+                        + game.world.TILE_SIZE / 2
                     )
-                ).center
-                pygame.draw.circle(
-                    screen,
-                    (0, 255, 255),
-                    screen_position,
-                    4
-                )
+
+                    screen_position = game.camera.apply(
+                        pygame.Rect(
+                            world_position.x,
+                            world_position.y,
+                            1,
+                            1
+                        )
+                    ).center
+
+                    pygame.draw.circle(
+                        screen,
+                        (0, 255, 255),
+                        screen_position,
+                        4
+                    )
 
 
 

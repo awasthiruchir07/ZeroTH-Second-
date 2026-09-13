@@ -28,7 +28,8 @@ class Game :
             raise RuntimeError("Could not find a valid player spawn position")
         self.player = Player(player_position)
         self.drones = []
-        for _ in range(3):
+        drone_types = ["basic", "scout", "tank"]
+        for drone_type in drone_types:
             drone_position = self.world.find_valid_position(
                 30,
                 30,
@@ -39,7 +40,8 @@ class Game :
                 self.drones.append(
                     Drone(
                         drone_position.x,
-                        drone_position.y
+                        drone_position.y,
+                        drone_type
                     )
                 )
 
@@ -267,16 +269,20 @@ class Game :
             return
         self.player = Player(player_position)
         self.drones = []
-        for _ in range(3):
-            drone_position = self.world.find_valid_position(                    
+        drone_types = ["basic", "scout", "tank"]
+        for drone_type in drone_types:
+            drone_position = self.world.find_valid_position(
                 30,
                 30,
                 min_distance=250,
-                origin=self.player.position)
+                origin=self.player.position
+            )
             if drone_position is not None:
                 self.drones.append(
                     Drone(
-                            drone_position.x,                            drone_position.y
+                        drone_position.x,
+                        drone_position.y,
+                        drone_type
                     )
                 )
         self.bullets.clear()
