@@ -59,9 +59,8 @@ class World:
                     color = (80, 80, 80)
 
                 else:
-                    color = (30, 30, 30)
+                    color = (0, 0, 0)
                 pygame.draw.rect(screen, color, rect)
-                pygame.draw.rect(screen, (45, 45, 45), rect, 1)   
 
     def is_wall(self, row, col):
         if row < 0 or row >= len(self.MAP):

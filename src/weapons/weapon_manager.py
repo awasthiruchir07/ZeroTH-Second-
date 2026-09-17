@@ -1,4 +1,6 @@
 from src.weapons.pistol import Pistol
+
+
 class WeaponManager:
     def __init__(self):
         self.weapon = Pistol()
@@ -10,4 +12,7 @@ class WeaponManager:
         return self.weapon.can_fire()
 
     def fire(self):
-        self.weapon.fire()
+        return self.weapon.fire()
+
+    def reload(self):
+        self.weapon.reload()

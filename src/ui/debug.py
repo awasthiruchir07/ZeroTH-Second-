@@ -28,8 +28,10 @@ class DebugOverlay:
             f"Player : ({game.player.position.x:.1f}, {game.player.position.y:.1f})",
             f"Camera : ({game.camera.offset.x:.1f}, {game.camera.offset.y:.1f})",
             f"Drones : {len(game.drones)}",
+            f"Wave : {game.wave}",
             f"Bullets : {len(game.bullets)}",
             f"Player HP : {game.player.health}",
+            f"Score : {game.score}",
         ]
         for i, drone in enumerate(game.drones):
             lines.append(

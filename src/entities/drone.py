@@ -65,33 +65,73 @@ class Drone(Entity):
         self.strafe_change_time = 1.5
         self.aim_direction = pygame.Vector2(1, 0)
 
+        # Sprite animation system for the three drone types.
+        # Atlas layout: 4 directions x 5 animations x 6 frame slots.
+        self.animations = {}
+        self.facing = "front"
+        self.animation = "idle"
+        self.animation_frame = 0
+        self.animation_timer = 0.0
+        self.shooting_timer = 0.0
+        self.hit_timer = 0.0
+        self.death_animation_duration = 0.9
+
+        self.animation_speeds = {
+            "idle": 0.14,
+            "move": 0.10,
+            "shoot": 0.055,
+            "hit": 0.06,
+            "death": 0.12,
+        }
+        self.animation_frame_counts = {
+            "idle": 5,
+            "move": 5,
+            "shoot": 5,
+            "hit": 3,
+            "death": 6,
+        }
+        self.sprite_size = (48, 60)
+        self.load_animations()
+
     def take_damage(self, amount):
         if self.dead:
             return
         self.health -= amount
         self.damage_flash = 0.12
+        self.hit_timer = 0.18
+        self.animation = "hit"
+        self.animation_frame = 0
+        self.animation_timer = 0.0
+
         if self.health <= 0:
             self.health = 0
             self.dead = True
-            self.death_timer = 2.0
+            self.death_timer = self.death_animation_duration
             self.explosion_timer = 0.35
+            self.animation = "death"
+            self.animation_frame = 0
+            self.animation_timer = 0.0
 
     def update(self, dt, player, world):
         if self.damage_flash > 0:
-            self.damage_flash -= dt
+            self.damage_flash = max(0.0, self.damage_flash - dt)
         if self.explosion_timer > 0:
-            self.explosion_timer -= dt
+            self.explosion_timer = max(0.0, self.explosion_timer - dt)
+        if self.shooting_timer > 0:
+            self.shooting_timer = max(0.0, self.shooting_timer - dt)
+        if self.hit_timer > 0:
+            self.hit_timer = max(0.0, self.hit_timer - dt)
+
         if self.dead:
-            return False 
+            self.death_timer = max(0.0, self.death_timer - dt)
+            self.update_animation(dt)
+            return False
+
         distance = pygame.Vector2(self.rect.center).distance_to(player.rect.center)
+        attack_result = False
+
         if self.state == self.PATROL:
-            if (
-                distance <= self.detection_range
-                and world.has_line_of_sight(
-                    self.position,
-                    player.position
-                )
-            ):
+            if distance <= self.detection_range and world.has_line_of_sight(self.position, player.position):
                 self.state = self.CHASE
         elif self.state == self.CHASE:
             if distance <= self.attack_range:
@@ -106,23 +146,14 @@ class Drone(Entity):
                 self.search_timer = self.search_duration
             elif distance > self.attack_range:
                 self.state = self.CHASE
-            elif not world.has_line_of_sight(
-                self.position,
-                player.position
-            ):
+            elif not world.has_line_of_sight(self.position, player.position):
                 self.state = self.CHASE
                 self.path = []
                 self.path_index = 0
                 self.path_timer = 0
         elif self.state == self.SEARCH:
             self.search_timer -= dt
-            if (
-                distance <= self.detection_range
-                and world.has_line_of_sight(
-                    self.position,
-                    player.position
-                )
-            ):
+            if distance <= self.detection_range and world.has_line_of_sight(self.position, player.position):
                 self.state = self.CHASE
                 self.path = []
                 self.path_index = 0
@@ -138,12 +169,17 @@ class Drone(Entity):
         elif self.state == self.CHASE:
             self.update_chase(dt, player, world)
         elif self.state == self.ATTACK:
-            return self.update_attack(dt, player, world)
+            attack_result = self.update_attack(dt, player, world)
         elif self.state == self.SEARCH:
             self.update_search(dt, world)
-        return False
+
+        # Facing is updated from actual movement, except while attacking where
+        # the drone should face the player.
+        self.update_animation(dt)
+        return attack_result
 
     def update_patrol(self, dt, world):
+        self.velocity = pygame.Vector2(self.direction * self.speed, 0)
         movement = self.direction * self.speed * dt
         new_x = self.position.x + movement
         new_rect = pygame.Rect(
@@ -289,6 +325,7 @@ class Drone(Entity):
         self.attack_cooldown -= dt
         if self.attack_cooldown <= 0:
             self.attack_cooldown = self.attack_delay
+            self.shooting_timer = 0.25
             return True
         return False 
         new_x = self.position.x + movement.x
@@ -314,7 +351,7 @@ class Drone(Entity):
             self.position.y = new_y
         
     def update_search(self, dt, world):
-        self.velocity = pygame.Vector2()
+        self.velocity = pygame.Vector2(self.direction * self.speed * 0.5, 0)
         movement = (
             self.direction *
             self.speed *
@@ -333,45 +370,109 @@ class Drone(Entity):
         else:
             self.direction *= -1
 
-    def draw(self, screen, camera):
-        rect = camera.apply(self.rect)
+    def load_animations(self):
+        """Load all animations from the generated drone atlases."""
+        drone_sheets = {
+            "basic": "assets/sprites/drone_basic.png",
+            "scout": "assets/sprites/drone_scout.png",
+            "tank": "assets/sprites/drone_tank.png",
+        }
+        sheet_path = drone_sheets.get(self.drone_type, drone_sheets["basic"])
+
+        try:
+            sheet = pygame.image.load(sheet_path).convert_alpha()
+        except (pygame.error, FileNotFoundError):
+            self.animations = {}
+            return
+
+        directions = ["front", "right", "back", "left"]
+        animations = ["idle", "move", "shoot", "hit", "death"]
+        frame_w, frame_h = 64, 72
+
+        for direction_index, direction in enumerate(directions):
+            self.animations[direction] = {}
+            for animation_index, animation in enumerate(animations):
+                row = direction_index * 5 + animation_index
+                frames = []
+                count = self.animation_frame_counts[animation]
+
+                for frame_index in range(count):
+                    source = pygame.Rect(
+                        frame_index * frame_w,
+                        row * frame_h,
+                        frame_w,
+                        frame_h
+                    )
+                    frame = sheet.subsurface(source).copy()
+                    frame = pygame.transform.smoothscale(
+                        frame, self.sprite_size
+                    )
+                    frames.append(frame)
+
+                self.animations[direction][animation] = frames
+
+    def update_facing(self, direction):
+        """Select front/back/left/right from a movement or aim vector."""
+        if direction.length_squared() <= 0.01:
+            return
+
+        if abs(direction.x) > abs(direction.y):
+            self.facing = "right" if direction.x > 0 else "left"
+        else:
+            self.facing = "front" if direction.y > 0 else "back"
+
+    def update_animation(self, dt):
         if self.dead:
-            if self.explosion_timer <= 0:
-                return
-            progress = 1.0 - (
-                self.explosion_timer / 0.35
-            )
-            radius = int(
-                15 + progress * 35
-            )
-            pygame.draw.circle(
-                screen,
-                (255, 140, 40),
-                rect.center,
-                radius,
-                3
-            )
-            pygame.draw.circle(
-                screen,
-                (255, 220, 100),
-                rect.center,
-                max(3, radius // 3)
+            wanted = "death"
+        elif self.hit_timer > 0:
+            wanted = "hit"
+        elif self.shooting_timer > 0:
+            wanted = "shoot"
+        elif self.velocity.length_squared() > 4:
+            wanted = "move"
+        else:
+            wanted = "idle"
+
+        if wanted != self.animation:
+            self.animation = wanted
+            self.animation_frame = 0
+            self.animation_timer = 0.0
+
+        if self.animation not in self.animations.get(self.facing, {}):
+            return
+
+        speed = self.animation_speeds[self.animation]
+        frame_count = self.animation_frame_counts[self.animation]
+
+        # Death plays once; all other animations loop except hit.
+        if self.animation == "death":
+            elapsed = self.death_animation_duration - self.death_timer
+            self.animation_frame = min(
+                int(max(0.0, elapsed) / (self.death_animation_duration / frame_count)),
+                frame_count - 1
             )
             return
-        if self.damage_flash > 0:
-            color = (255, 80, 80)
-        else:
-            color = self.color
-        pygame.draw.circle(
-            screen,
-            color,
-            rect.center,
-            15
-        )
-        pygame.draw.circle(
-            screen,
-            (255, 255, 255),
-            rect.center,
-            5
-        )
-        
+
+        self.animation_timer += dt
+        while self.animation_timer >= speed:
+            self.animation_timer -= speed
+            self.animation_frame += 1
+            if self.animation == "hit":
+                self.animation_frame = min(self.animation_frame, frame_count - 1)
+            else:
+                self.animation_frame %= frame_count
+
+    def draw(self, screen, camera):
+        rect = camera.apply(self.rect)
+
+        if not self.animations:
+            color = (255, 80, 80) if self.damage_flash > 0 else self.color
+            pygame.draw.circle(screen, color, rect.center, 15)
+            pygame.draw.circle(screen, (255, 255, 255), rect.center, 5)
+            return
+
+        frames = self.animations[self.facing][self.animation]
+        frame_index = min(self.animation_frame, len(frames) - 1)
+        image = frames[frame_index]
+        sprite_rect = image.get_rect(center=rect.center)
+        screen.blit(image, sprite_rect)
