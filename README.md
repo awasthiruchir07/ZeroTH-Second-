@@ -9,60 +9,7 @@ Project Exhibition I – Project Documentation
 
 
  
- File System:
-ZeroTH-Second-/
-│
-├── main.py
-├── .gitignore
-├── README.md
-│
-├── assets/
-│   ├── images/
-│   │   ├── player/
-│   │   ├── drone/
-│   │   ├── weapons/
-│   │   ├── bullets/
-│   │   └── effects/
-│   │
-│   ├── sounds/
-│   │   ├── weapons/
-│   │   ├── player/
-│   │   ├── drone/
-│   │   └── effects/
-│   │
-│   └── fonts/
-│
-├── src/
-│   │
-│   ├── engine/
-│   │   ├── __init__.py
-│   │   ├── game.py
-│   │   ├── camera.py
-│   │   ├── input.py
-│   │   ├── settings.py
-│   │   └── timer.py
-│   │
-│   ├── entities/
-│   │   ├── __init__.py
-│   │   ├── entity.py
-│   │   ├── player.py
-│   │   └── drone.py
-│   │
-│   ├── weapons/
-│   │   ├── __init__.py
-│   │   ├── bullet.py
-│   │   ├── pistol.py
-│   │   └── weapon_manager.py
-│   │   ├── weapons.py
-│   │
-│   ├── world/
-│   │   ├── __init__.py
-│   │   └── world.py
-│   │
-│   └── ui/
-│       ├── __init__.py
-│       ├── debug.py
-└── 
+
  1. ABSTRACT
 Zeroth Second is a real-time 2D combat game developed using Python. The project combines interactive gameplay with fundamental Computer Science concepts such as Object-Oriented Programming, modular software design, real-time event processing, collision detection, projectile management, game-state management, and debugging.
 The game is designed around a time-manipulation concept, where the player can interact with the flow of time during combat. This creates a gameplay environment in which the player must make strategic decisions while managing movement, aiming, shooting, enemy attacks, and survival.
