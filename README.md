@@ -100,25 +100,6 @@ Environment → Frozen
 Conceptually, the game can determine whether time-dependent objects receive their normal update operations. This can later be extended to slow motion, rewind, time acceleration, temporal energy, cooldowns, and other abilities.
 10. GAME ARCHITECTURE
 The system follows a modular architecture in which each major responsibility is separated into a logical component.
-                    GAME ENGINE
-                         │
-                    TIME CONTROL
-                         │
-        ┌────────────────┼────────────────┐
-        ↓                ↓                ↓
-     PLAYER            ENEMY          PROJECTILE
-     MODULE            MODULE           MODULE
-        │                │                │
-        └────────────────┼────────────────┘
-                         ↓
-                 COLLISION SYSTEM
-                         ↓
-                  HEALTH / DAMAGE
-                         ↓
-                    GAME STATE
-                         ↓
-                    RENDER OUTPUT
-
 Game Engine
 Coordinates the main game loop, input processing, updates, timing, rendering, and resources.
 Time Control
